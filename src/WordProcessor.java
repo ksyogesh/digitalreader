@@ -1,0 +1,270 @@
+import java.awt.*;
+import java.awt.event.*;
+import java.io.*;
+import java.util.*;
+
+import javax.swing.*;
+import javax.swing.text.*;
+import javax.swing.event.*;
+import javax.swing.border.*;
+import javax.swing.text.rtf.*;
+
+public class WordProcessor extends JFrame {
+	protected JTextPane m_monitor;
+	protected StyleContext m_context;
+	protected DefaultStyledDocument m_doc;
+	protected RTFEditorKit m_kit;
+	protected JFileChooser m_chooser;
+	protected SimpleFilter m_rtfFilter;
+	protected JToolBar m_toolBar;
+
+	public WordProcessor() {
+		super("DIGITAL READER-RTF");
+		setIconImage(Toolkit.getDefaultToolkit().getImage(
+				"C:\\Users\\CS_Lab\\Downloads\\Dr.jpg"));
+		setSize(600, 400);
+
+		// Make sure we install the editor kit before creating
+		// the initial document.
+		m_monitor = new JTextPane();
+		m_kit = new RTFEditorKit();
+		m_monitor.setEditorKit(m_kit);
+		m_context = new StyleContext();
+		m_doc = new DefaultStyledDocument(m_context);
+		m_monitor.setDocument(m_doc);
+
+		JScrollPane ps = new JScrollPane(m_monitor);
+		getContentPane().add(ps, BorderLayout.CENTER);
+
+		JMenuBar menuBar = createMenuBar();
+		setJMenuBar(menuBar);
+
+		m_chooser = new JFileChooser();
+		m_chooser.setCurrentDirectory(new File("."));
+		m_rtfFilter = new SimpleFilter("rtf", "RTF Documents");
+		m_chooser.setFileFilter(m_rtfFilter);
+
+		setVisible(true);
+	}
+
+	protected JMenuBar createMenuBar() {
+		JMenuBar menuBar = new JMenuBar();
+
+		JMenu mFile = new JMenu("File");
+		mFile.setMnemonic('f');
+
+		ImageIcon iconNew = new ImageIcon("file_new.gif");
+		Action actionNew = new AbstractAction("New", iconNew) {
+			public void actionPerformed(ActionEvent e) {
+				m_doc = new DefaultStyledDocument(m_context);
+				m_monitor.setDocument(m_doc);
+			}
+		};
+		JMenuItem item = mFile.add(actionNew);
+		item.setMnemonic('n');
+
+		ImageIcon iconOpen = new ImageIcon("file_open.gif");
+		Action actionOpen = new AbstractAction("Open...", iconOpen) {
+			public void actionPerformed(ActionEvent e) {
+				WordProcessor.this.setCursor(Cursor
+						.getPredefinedCursor(Cursor.WAIT_CURSOR));
+				Thread runner = new Thread() {
+					public void run() {
+						if (m_chooser.showOpenDialog(WordProcessor.this) != JFileChooser.APPROVE_OPTION)
+							return;
+						WordProcessor.this.repaint();
+						File fChoosen = m_chooser.getSelectedFile();
+
+						// Recall that text component read/write operations are
+						// thread safe. Its ok to do this in a separate thread.
+						try {
+							InputStream in = new FileInputStream(fChoosen);
+							m_doc = new DefaultStyledDocument(m_context);
+							m_kit.read(in, m_doc, 0);
+							m_monitor.setDocument(m_doc);
+							in.close();
+						} catch (Exception ex) {
+							ex.printStackTrace();
+						}
+						WordProcessor.this.setCursor(Cursor
+								.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
+					}
+				};
+				runner.start();
+			}
+		};
+		item = mFile.add(actionOpen);
+		item.setMnemonic('o');
+
+		ImageIcon iconSave = new ImageIcon("file_save.gif");
+		Action actionSave = new AbstractAction("Save...", iconSave) {
+			public void actionPerformed(ActionEvent e) {
+				WordProcessor.this.setCursor(Cursor
+						.getPredefinedCursor(Cursor.WAIT_CURSOR));
+				Thread runner = new Thread() {
+					public void run() {
+						if (m_chooser.showSaveDialog(WordProcessor.this) != JFileChooser.APPROVE_OPTION)
+							return;
+						WordProcessor.this.repaint();
+						File fChoosen = m_chooser.getSelectedFile();
+
+						// Recall that text component read/write operations are
+						// thread safe. Its ok to do this in a separate thread.
+						try {
+							OutputStream out = new FileOutputStream(fChoosen);
+							m_kit.write(out, m_doc, 0, m_doc.getLength());
+							out.close();
+						} catch (Exception ex) {
+							ex.printStackTrace();
+						}
+
+						// Make sure chooser is updated to reflect new file
+						m_chooser.rescanCurrentDirectory();
+						WordProcessor.this.setCursor(Cursor
+								.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
+					}
+				};
+				runner.start();
+			}
+		};
+		item = mFile.add(actionSave);
+		item.setMnemonic('s');
+
+		mFile.addSeparator();
+
+		Action actionExit = new AbstractAction("Exit") {
+			public void actionPerformed(ActionEvent e) {
+				System.exit(0);
+			}
+		};
+
+		item = mFile.add(actionExit);
+		item.setMnemonic('x');
+		menuBar.add(mFile);
+		JButton btnRtf = new JButton("Main Window");
+		btnRtf.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				String s = e.getActionCommand();
+				if (s == "Main Window") {
+					/**********************************************
+					 * This is where i am calling the window2 *
+					 *********************************************/
+					textreader1 tester = new textreader1();
+					tester.setVisible(true);
+					setVisible(false);
+				}
+			}
+		});
+		menuBar.add(btnRtf);
+
+		m_toolBar = new JToolBar();
+		JButton bNew = new SmallButton(actionNew, "New document");
+		m_toolBar.add(bNew);
+
+		JButton bOpen = new SmallButton(actionOpen, "Open RTF document");
+		m_toolBar.add(bOpen);
+
+		JButton bSave = new SmallButton(actionSave, "Save RTF document");
+		m_toolBar.add(bSave);
+
+		getContentPane().add(m_toolBar, BorderLayout.NORTH);
+
+		return menuBar;
+	}
+
+	public static void main(String argv[]) {
+		UIManager.LookAndFeelInfo plafinfo[] = UIManager
+				.getInstalledLookAndFeels();
+		boolean nimbusfound = false;
+		int nimbusindex = 0;
+
+		for (int look = 0; look < plafinfo.length; look++) {
+			if (plafinfo[look].getClassName().toLowerCase().contains("nimbus")) {
+				nimbusfound = true;
+				nimbusindex = look;
+			}
+		}
+
+		try {
+
+			if (nimbusfound) {
+				UIManager.setLookAndFeel(plafinfo[nimbusindex].getClassName());
+			} else
+
+				UIManager.setLookAndFeel(UIManager
+						.getCrossPlatformLookAndFeelClassName());
+
+		} catch (Exception e) {
+		}
+		new WordProcessor();
+
+	}
+}
+
+// Class SmallButton unchanged from section 4.8
+
+class SmallButton extends JButton implements MouseListener {
+	protected Border m_raised;
+	protected Border m_lowered;
+	protected Border m_inactive;
+
+	public SmallButton(Action act, String tip) {
+		super((Icon) act.getValue(Action.SMALL_ICON));
+		m_raised = new BevelBorder(BevelBorder.RAISED);
+		m_lowered = new BevelBorder(BevelBorder.LOWERED);
+		m_inactive = new EmptyBorder(2, 2, 2, 2);
+		setBorder(m_inactive);
+		setMargin(new Insets(1, 1, 1, 1));
+		setToolTipText(tip);
+		addActionListener(act);
+		addMouseListener(this);
+		setRequestFocusEnabled(false);
+	}
+
+	public float getAlignmentY() {
+		return 0.5f;
+	}
+
+	public void mousePressed(MouseEvent e) {
+		setBorder(m_lowered);
+	}
+
+	public void mouseReleased(MouseEvent e) {
+		setBorder(m_inactive);
+	}
+
+	public void mouseClicked(MouseEvent e) {
+	}
+
+	public void mouseEntered(MouseEvent e) {
+		setBorder(m_raised);
+	}
+
+	public void mouseExited(MouseEvent e) {
+		setBorder(m_inactive);
+	}
+}
+
+// Class SimpleFilter unchanged from section 14.1.9
+
+class SimpleFilter extends javax.swing.filechooser.FileFilter {
+	private String m_description = null;
+	private String m_extension = null;
+
+	public SimpleFilter(String extension, String description) {
+		m_description = description;
+		m_extension = "." + extension.toLowerCase();
+	}
+
+	public String getDescription() {
+		return m_description;
+	}
+
+	public boolean accept(File f) {
+		if (f == null)
+			return false;
+		if (f.isDirectory())
+			return true;
+		return f.getName().toLowerCase().endsWith(m_extension);
+	}
+}
